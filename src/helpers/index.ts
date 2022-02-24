@@ -1,25 +1,34 @@
-import { child, get, getDatabase, ref } from "firebase/database";
+import firestore from "@react-native-firebase/firestore";
+import { getLuminance, lighten, shade } from "polished";
 
-export function getAllData() {
-  return new Promise<any[]>((resolve, reject) => {
-    const dbRef = ref(getDatabase());
-    const data: any[] = [];
-    get(dbRef)
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          Object.entries(snapshot.val()).forEach(
-            ([key, value]: [key: string, value: any]) => {
-              data.push({ ...value, id: key });
-            }
-          );
+import { ISnapShot, ITask } from "../commonTypes";
+import { useUserInfo } from "../hooks";
 
-          resolve(data);
-        } else {
-          resolve([]);
-        }
-      })
-      .catch((error) => {
-        reject(error);
-      });
+export function makeContentSnapShot<T>(snapshot: ISnapShot) {
+  let data: T[] = [];
+
+  snapshot.docs.forEach((doc) => {
+    if (doc.exists) {
+      const item = { ...doc.data(), id: doc.id } as unknown as T;
+      data.push(item);
+    }
   });
+
+  return data;
+}
+
+function between(x: number, min: number, max: number) {
+  return x >= min && x <= max;
+}
+
+export function getColorCombination(color: string) {
+  const luminance = getLuminance(color);
+
+  if (between(luminance, 0, 0.3)) return lighten(0.4, color);
+
+  if (between(luminance, 0, 0.5)) return lighten(0.2, color);
+
+  if (between(luminance, 0.5, 0.7)) return shade(0.2, color);
+
+  if (between(luminance, 0.5, 1)) return shade(0.5, color);
 }

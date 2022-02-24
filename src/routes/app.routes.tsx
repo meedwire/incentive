@@ -1,14 +1,19 @@
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createStackNavigator } from "@react-navigation/stack";
 import { Home } from "../screens/Home";
 import { TasksConfig } from "../screens/TasksConfig";
 
-const Stack = createNativeStackNavigator();
+export type IRouteParams = {
+  Home: undefined;
+  TasksConfig?: { id?: string };
+};
+
+const Stack = createStackNavigator<IRouteParams>();
 
 const AppRoutes: React.FC = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        contentStyle: { backgroundColor: "white" },
+        cardStyle: { backgroundColor: "white" },
         headerShadowVisible: false,
       }}
     >

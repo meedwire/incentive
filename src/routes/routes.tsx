@@ -1,12 +1,9 @@
 import { NavigationContainer } from "@react-navigation/native";
-import { AppRoutes } from "./app.routes";
+import { AppRoutes, IRouteParams } from "./app.routes";
 
 declare global {
   namespace ReactNavigation {
-    interface RootParamList {
-      Home: undefined;
-      TasksConfig: undefined;
-    }
+    interface RootParamList extends IRouteParams {}
   }
 }
 

@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "225029922668",
+    "firebase_url": "https://incentive-cedce-default-rtdb.firebaseio.com",
+    "project_id": "incentive-cedce",
+    "storage_bucket": "incentive-cedce.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:225029922668:android:f7ae3728ca31adedd21d49",
+        "android_client_info": {
+          "package_name": "com.meedwire.incentive"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "225029922668-9jiqra6aejno0pa2iccvgquvubse7o0d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpPGs6LqclwfA1JaG7mD1pGcu8Xijhl0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "225029922668-9jiqra6aejno0pa2iccvgquvubse7o0d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
