@@ -19,22 +19,14 @@ const Home: React.FC = () => {
   }
 
   const renderItems = useCallback(() => {
-    return isLoading ? (
-      <ActivityIndicator size={60} color="red" />
-    ) : (
-      tasks?.map((item, index) => (
-        <ItemList key={item.id} item={item} index={index} />
-      ))
-    );
+    if (isLoading) {
+      return <ActivityIndicator size={60} color="#97ff8ba1" />;
+    }
+
+    return tasks?.map((item, index) => (
+      <ItemList key={item.id} item={item} index={index} />
+    ));
   }, [tasks]);
-
-  function updateStar(id: string, points: number) {}
-
-  function handleEdit(id: string) {
-    navigation.navigate("TasksConfig", { id });
-  }
-
-  function handleDelete(id: string) {}
 
   return (
     <Animated.View layout={Layout} style={styles.container}>

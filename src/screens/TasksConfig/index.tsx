@@ -40,6 +40,8 @@ import { Audio } from "expo-av";
 import Icon from "@expo/vector-icons/MaterialCommunityIcons";
 import * as fs from "expo-file-system";
 import { useAsyncState } from "../../hooks";
+import { AudioRecorder, ColorScheme, LoadingButton } from "./components";
+import { Input } from "../../components";
 
 interface IValues extends ITask {
   date: Date;
@@ -61,20 +63,16 @@ const TasksConfig: React.FC = () => {
   const { params } = useRoute<IRoute>();
   const refScrollColors = useRef<FlatList>(null);
   const colors = [...new Set(dataColors)].filter((_, i) => i % 6 === 0);
+  const recording = useRef<Audio.Recording>();
+  const [audioUri, setAudioUri] = useState<string | null | undefined>();
+  const [loading, setLoading] = useAsyncState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   const randomIndex = Math.floor(Math.random() * colors.length);
+
   const [defaultColor, setDefaultColor] = useState(
     colors.find((_, i) => i === randomIndex) || "#e8ffed"
   );
-  const recording = useRef<Audio.Recording>();
-  const scale = useSharedValue(1);
-  const [audioUri, setAudioUri] = useState<string | null | undefined>();
-  const lineWidth = useSharedValue(0);
-  const timeAudio = useRef<NodeJS.Timer>();
-  const [recordInProgress, setRecordInProgress] = useState(false);
-  const [timerLimitAudio, setTimerLImitAudio] = useState("00s");
-  const timer = useRef<NodeJS.Timer>();
-  const [widthAudioLine, setWidthAudioLine] = useState(0);
-  const [loading, setLoading] = useAsyncState(false);
 
   const { handleSubmit, values, setFieldValue, errors, setValues } =
     useFormik<IValues>({
@@ -82,7 +80,7 @@ const TasksConfig: React.FC = () => {
         date: new Date(),
         points: 0,
         show: false,
-        color: colors.find((_, i) => i === randomIndex),
+        color: colors.find((_, i) => i === 10),
       } as IValues,
       validationSchema: schema,
       onSubmit: async (data: any) => {
@@ -130,31 +128,11 @@ const TasksConfig: React.FC = () => {
 
   const styles = makeStyles(defaultColor);
 
-  useEffect(() => {
-    if (refScrollColors.current) {
-      setTimeout(() => {
-        refScrollColors.current &&
-          refScrollColors.current.scrollToIndex({
-            index: colors.findIndex((item) => item === values.color),
-            viewOffset: Dimensions.get("screen").width / 2 - 22,
-          });
-      }, 1000);
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, []);
-
-  function parseTimeLimit() {}
-
   const onChange = (event: any, selectedDate: any) => {
     const currentDate = selectedDate || values.date;
+    setShowDatePicker(false);
     setFieldValue("date", currentDate);
     setFieldValue("limitDate", moment(currentDate).format("DD/MM/YYYY"));
-    setFieldValue("show", false);
   };
 
   const getInitialData = useCallback(
@@ -182,207 +160,32 @@ const TasksConfig: React.FC = () => {
     }
   }, [params?.id]);
 
-  async function startRecording() {
-    try {
-      setRecordInProgress(true);
-
-      if (audioUri) {
-        await clearAudioRecorded();
-      }
-
-      let counter = 1;
-      timer.current = setInterval(() => {
-        const acc = counter++;
-        setTimerLImitAudio(`${acc.toString().padStart(2, "0")}s`);
-      }, 1000);
-      console.log("Requesting permissions..");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-      });
-      console.log("Starting recording..");
-      const { recording: audioInstance } = await Audio.Recording.createAsync(
-        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-      );
-      recording.current = audioInstance;
-
-      console.log("Recording started");
-
-      lineWidth.value = withTiming(widthAudioLine, {
-        duration: 10000,
-      });
-
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.2, { duration: 1000 }),
-          withTiming(1, { duration: 1000 })
-        ),
-        Infinity
-      );
-
-      timeAudio.current = setTimeout(() => {
-        stopRecording();
-      }, 10000);
-    } catch (err) {
-      setRecordInProgress(false);
-      console.error("Failed to start recording", err);
-    }
-  }
-
-  async function stopRecording() {
-    try {
-      setRecordInProgress(false);
-      if (timeAudio.current) {
-        clearTimeout(timeAudio.current);
-      }
-
-      if (timer.current) {
-        clearInterval(timer.current);
-      }
-
-      cancelAnimation(lineWidth);
-
-      console.log("Stopping recording..");
-
-      await recording.current?.stopAndUnloadAsync();
-      const uri = recording.current?.getURI();
-
-      recording.current = undefined;
-
-      console.log("Recording stopped and stored at", uri);
-      setAudioUri(uri);
-      cancelAnimation(scale);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  async function clearAudioRecorded() {
-    await stopRecording();
-
-    setAudioUri(undefined);
-    lineWidth.value = 0;
-    setTimerLImitAudio("00s");
-  }
-
-  async function playAudio() {
-    if (!audioUri) {
-      return null;
-    }
-
-    try {
-      const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
-
-      await sound.playAsync();
-    } catch (error) {}
-  }
-
-  function onLayout(e: LayoutChangeEvent) {
-    setWidthAudioLine(e.nativeEvent.layout.width);
-  }
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: scale.value,
-        },
-      ],
-    };
-  });
-
-  const keyframe = new Keyframe({
-    0: {
-      opacity: 0,
-      transform: [{ translateX: -100 }, { scale: 0 }],
-    },
-    100: {
-      opacity: 1,
-      transform: [{ translateX: 0 }, { scale: 1 }],
-    },
-  });
-
-  const animatedLine = useAnimatedStyle(() => {
-    return {
-      width: lineWidth.value,
-    };
-  });
-
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Objetivo:</Text>
-      <TextInput
+      <Input
+        label="Objetivo:"
+        defaultColor={defaultColor}
         value={values.description}
+        error={errors?.description}
         onChangeText={(text) => setFieldValue("description", text)}
-        style={styles.input}
       />
-      {errors?.description && (
-        <Text style={styles.textError}>{errors?.description}</Text>
-      )}
-      <Text style={styles.label}>Premiação:</Text>
-      <TextInput
+      <Input
+        label="Premiação:"
+        defaultColor={defaultColor}
         value={values.award}
+        error={errors?.award}
         onChangeText={(text) => setFieldValue("award", text)}
-        style={styles.input}
       />
-      {errors?.award && <Text style={styles.textError}>{errors?.award}</Text>}
-      <Text style={styles.label}>Data limite:</Text>
-      <TouchableOpacity
-        onPress={() => setFieldValue("show", true)}
-        style={styles.input}
-      >
-        <Text>{moment(values?.date).format("DD/MM/YYYY")}</Text>
-      </TouchableOpacity>
-      {errors?.limitDate && (
-        <Text style={styles.textError}>{errors?.limitDate}</Text>
-      )}
-      <Animated.View
-        layout={Layout.duration(1500)}
-        style={styles.containerAudioRecorder}
-      >
-        <AnimatedTouchable
-          style={[styles.buttonPlaySound, animatedStyle]}
-          onPress={recordInProgress ? stopRecording : startRecording}
-        >
-          <Icon
-            name={recordInProgress ? "stop" : "record-circle"}
-            color={defaultColor}
-          />
-        </AnimatedTouchable>
-        {audioUri && (
-          <AnimatedTouchable
-            layout={Layout}
-            entering={keyframe}
-            style={[styles.buttonPlaySound, animatedStyle]}
-            onPress={playAudio}
-          >
-            <Icon name="play" color={defaultColor} />
-          </AnimatedTouchable>
-        )}
-        <Animated.Text layout={Layout} style={styles.textTimeRecording}>
-          {timerLimitAudio}
-        </Animated.Text>
-        <Animated.View
-          onLayout={onLayout}
-          layout={Layout}
-          style={styles.indicatorAudio}
-        >
-          <Animated.View style={[styles.aniimatedLine, animatedLine]} />
-        </Animated.View>
-        {audioUri && (
-          <AnimatedTouchable
-            layout={Layout}
-            entering={keyframe}
-            style={[styles.buttonDiscardAudio, animatedStyle]}
-            onPress={clearAudioRecorded}
-          >
-            <Icon name="close" color={defaultColor} />
-          </AnimatedTouchable>
-        )}
-      </Animated.View>
-      {values.show && (
+      <Input
+        editable={false}
+        defaultColor={defaultColor}
+        label="Data limite:"
+        onPress={() => setShowDatePicker(true)}
+        value={moment(values?.date).format("DD/MM/YYYY")}
+        error={errors?.limitDate}
+      />
+      <AudioRecorder defaultColor={defaultColor} />
+      {showDatePicker && (
         <DateTimePicker
           value={values.date}
           mode="date"
@@ -392,55 +195,9 @@ const TasksConfig: React.FC = () => {
         />
       )}
 
-      <View style={styles.containerColors}>
-        <FlatList
-          ref={refScrollColors}
-          data={colors}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.containerScroll}
-          keyExtractor={(item, index) => `${item}-${index}`}
-          horizontal
-          initialNumToRender={colors.length}
-          renderItem={({ item, index }) => (
-            <AnimatedTouchable
-              layout={Layout}
-              entering={BounceIn}
-              onPress={() => {
-                setDefaultColor(item);
-                setFieldValue("color", item);
-              }}
-              style={[
-                styles.color,
-                {
-                  backgroundColor: item,
-                  borderColor: shade(0.2, item),
-                  transform: [{ scale: defaultColor === item ? 1 : 0.9 }],
-                  elevation: defaultColor === item ? 4 : 2,
-                  borderWidth: defaultColor === item ? 3 : 0.5,
-                },
-              ]}
-            />
-          )}
-        />
-      </View>
+      <ColorScheme onChangeColor={(color) => setDefaultColor(color)} />
 
-      <TouchableOpacity
-        onPress={() => handleSubmit()}
-        style={styles.buttonSave}
-      >
-        {loading ? (
-          <ActivityIndicator
-            size={20}
-            color={
-              getLuminance(defaultColor) < 0.5
-                ? lighten(0.5, defaultColor)
-                : shade(0.2, defaultColor)
-            }
-          />
-        ) : (
-          <Text style={styles.textButtonSave}>Salvar</Text>
-        )}
-      </TouchableOpacity>
+      <LoadingButton />
     </View>
   );
 };
