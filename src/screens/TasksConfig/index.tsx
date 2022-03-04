@@ -197,7 +197,7 @@ const TasksConfig: React.FC = () => {
 
       <ColorScheme onChangeColor={(color) => setDefaultColor(color)} />
 
-      <LoadingButton />
+      <LoadingButton loading={loading} defaultColor={defaultColor} />
     </View>
   );
 };

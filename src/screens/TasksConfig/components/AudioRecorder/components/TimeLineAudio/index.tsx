@@ -1,20 +1,28 @@
-import React, { useMemo } from "react";
-import { View } from "react-native";
-import Animated, { Layout, useAnimatedStyle } from "react-native-reanimated";
+import React, { useMemo, useState } from "react";
+import { LayoutChangeEvent, View } from "react-native";
+import Animated, {
+  interpolate,
+  Layout,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { makeStyles } from "./styles";
 import { IPropsTimeLine } from "./types";
 
 const TimeLineAudio: React.FC<IPropsTimeLine> = ({
   currentTimer,
   defaultColor,
-  onLayout,
   lineWidth,
 }) => {
   const styles = useMemo(() => makeStyles(defaultColor), [defaultColor]);
+  const [widthAudioLine, setWidthAudioLine] = useState(0);
+
+  function onLayout(e: LayoutChangeEvent) {
+    setWidthAudioLine(e.nativeEvent.layout.width);
+  }
 
   const animatedLine = useAnimatedStyle(() => {
     return {
-      width: lineWidth.value,
+      width: interpolate(lineWidth.value, [0, 1], [0, widthAudioLine]),
     };
   });
 

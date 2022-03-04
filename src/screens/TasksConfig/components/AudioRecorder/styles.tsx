@@ -1,6 +1,5 @@
 import { getLuminance, shade } from "polished";
 import { StyleSheet } from "react-native";
-import { getColorCombination } from "../../../../helpers";
 
 export function makeStyles(color?: string) {
   const defaultColor = color || "#dadada";

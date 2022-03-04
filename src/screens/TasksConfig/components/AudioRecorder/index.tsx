@@ -1,46 +1,49 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutChangeEvent, View } from "react-native";
+import { LayoutChangeEvent } from "react-native";
 import Animated, {
   cancelAnimation,
   Keyframe,
   Layout,
+  set,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { AnimatedTouchable } from "../../../../components/AnimatedTouchable";
 import { IPropsAudioRecorder } from "./types";
 import { makeStyles } from "./styles";
 import { IconButton } from "../../../../components";
 import { Audio } from "expo-av";
 import { TimeLineAudio } from "./components";
+import {
+  useAudioRecorder,
+  useSequenceRepeat,
+  useTiming,
+} from "../../../../hooks";
 
 const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
   const styles = useMemo(() => makeStyles(defaultColor), [defaultColor]);
-  const [widthAudioLine, setWidthAudioLine] = useState(0);
-  const lineWidth = useSharedValue(0);
-  const scale = useSharedValue(1);
   const recording = useRef<Audio.Recording>();
-  const [audioUri, setAudioUri] = useState<string | null | undefined>();
-  const [recordInProgress, setRecordInProgress] = useState(false);
   const [timerLimitAudio, setTimerLImitAudio] = useState("00s");
-  const timeAudio = useRef<NodeJS.Timer>();
   const timer = useRef<NodeJS.Timer>();
+  const {
+    startRecording,
+    stopRecording,
+    recordingInProgress,
+    audioUri,
+    clearRecording,
+  } = useAudioRecorder();
 
-  function onLayout(e: LayoutChangeEvent) {
-    setWidthAudioLine(e.nativeEvent.layout.width);
-  }
+  const lineWidth = useTiming(recordingInProgress, { duration: 10000 });
+  const scale = useSequenceRepeat(recordingInProgress);
 
-  async function startRecording() {
+  useEffect(() => {
+    console.log(recordingInProgress);
+  }, [recordingInProgress]);
+
+  async function handleStartRecording() {
     try {
-      setRecordInProgress(true);
-
-      if (audioUri) {
-        await clearAudioRecorded();
-      }
-
       let counter = 1;
 
       timer.current = setInterval(() => {
@@ -48,79 +51,45 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
         setTimerLImitAudio(`${acc.toString().padStart(2, "0")}s`);
       }, 1000);
 
-      console.log("Requesting permissions..");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-      });
-      console.log("Starting recording..");
-      const { recording: audioInstance } = await Audio.Recording.createAsync(
-        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-      );
-      recording.current = audioInstance;
-
-      console.log("Recording started");
-
-      lineWidth.value = withTiming(widthAudioLine, {
-        duration: 10000,
-      });
-
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.2, { duration: 1000 }),
-          withTiming(1, { duration: 1000 })
-        ),
-        Infinity
-      );
-
-      timeAudio.current = setTimeout(() => {
-        stopRecording();
-      }, 10000);
+      await startRecording();
+      handleStopRecording();
     } catch (err) {
-      setRecordInProgress(false);
       console.error("Failed to start recording", err);
+      clearAudioRecorded();
     }
   }
 
-  async function stopRecording() {
+  async function handleStopRecording() {
     try {
-      setRecordInProgress(false);
-      if (timeAudio.current) {
-        clearTimeout(timeAudio.current);
-      }
-
+      console.log("Roudou aqui");
       if (timer.current) {
         clearInterval(timer.current);
       }
 
+      const uri = await stopRecording();
+
       cancelAnimation(lineWidth);
+      cancelAnimation(scale);
 
-      console.log("Stopping recording..");
+      scale.value = 1;
 
-      await recording.current?.stopAndUnloadAsync();
-      const uri = recording.current?.getURI();
+      lineWidth.value = 0;
 
       recording.current = undefined;
 
       console.log("Recording stopped and stored at", uri);
-      setAudioUri(uri);
-      cancelAnimation(scale);
     } catch (error) {
       console.log(error);
     }
   }
 
   async function clearAudioRecorded() {
-    await stopRecording();
-
-    setAudioUri(undefined);
-    lineWidth.value = 0;
+    await clearRecording();
     setTimerLImitAudio("00s");
   }
 
   async function playAudio() {
+    console.log(audioUri);
     if (!audioUri) {
       return null;
     }
@@ -129,7 +98,12 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
       const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
 
       await sound.playAsync();
-    } catch (error) {}
+      await sound.setVolumeAsync(1);
+
+      console.log("AUdio is loaded", sound._loaded);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   useEffect(() => {
@@ -164,10 +138,13 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
       <Animated.Text style={styles.textLabel}>Audio: </Animated.Text>
       <Animated.View style={styles.containerAudioRecorder}>
         <IconButton
-          onPress={recordInProgress ? stopRecording : startRecording}
+          activeOpacity={1}
+          onPress={
+            recordingInProgress ? handleStopRecording : handleStartRecording
+          }
           style={[styles.buttonPlaySound, animatedStyle]}
           icon={{
-            name: recordInProgress ? "stop" : "record-circle",
+            name: recordingInProgress ? "stop" : "record-circle",
             color: defaultColor,
           }}
         />
@@ -186,7 +163,6 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
         <TimeLineAudio
           currentTimer={timerLimitAudio}
           defaultColor={defaultColor}
-          onLayout={onLayout}
           lineWidth={lineWidth}
         />
         {audioUri && (

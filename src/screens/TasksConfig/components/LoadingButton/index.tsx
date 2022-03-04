@@ -1,19 +1,21 @@
 import React from "react";
-import { View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { getColorCombination } from "../../../../helpers";
 import { makeStyles } from "./styles";
+import { IPropsButtonLoading } from "./types";
 
-const LoadingButton: React.FC = ({ defaultColor }) => {
-  const styles = makeStyles(defaultColro);
+const LoadingButton: React.FC<IPropsButtonLoading> = ({
+  defaultColor,
+  onPress,
+  loading,
+}) => {
+  const styles = makeStyles(defaultColor);
   return (
-    <TouchableOpacity onPress={() => handleSubmit()} style={styles.container}>
+    <TouchableOpacity onPress={onPress} style={styles.container}>
       {loading ? (
         <ActivityIndicator
           size={20}
-          color={
-            getLuminance(defaultColor) < 0.5
-              ? lighten(0.5, defaultColor)
-              : shade(0.2, defaultColor)
-          }
+          color={getColorCombination(defaultColor || "#dadada")}
         />
       ) : (
         <Text style={styles.textButtonSave}>Salvar</Text>
