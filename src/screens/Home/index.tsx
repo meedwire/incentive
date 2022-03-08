@@ -36,7 +36,7 @@ const Home: React.FC = () => {
           layout={Layout}
           contentContainerStyle={styles.scroll}
         >
-          {renderItems()}
+          <Animated.View layout={Layout}>{renderItems()}</Animated.View>
         </Animated.ScrollView>
         <ButtonPlus onPress={handleAddTask} />
       </GestureHandlerRootView>

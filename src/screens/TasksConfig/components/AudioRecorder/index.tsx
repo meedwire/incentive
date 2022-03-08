@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent } from "react-native";
 import Animated, {
   cancelAnimation,
+  FadeInUp,
   Keyframe,
   Layout,
   set,
@@ -22,7 +23,11 @@ import {
   useTiming,
 } from "../../../../hooks";
 
-const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
+const AudioRecorder: React.FC<IPropsAudioRecorder> = ({
+  defaultColor,
+  onFinishRecorder,
+  error,
+}) => {
   const styles = useMemo(() => makeStyles(defaultColor), [defaultColor]);
   const recording = useRef<Audio.Recording>();
   const [timerLimitAudio, setTimerLImitAudio] = useState("00s");
@@ -34,13 +39,10 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
     audioUri,
     clearRecording,
   } = useAudioRecorder();
+  const [soundPlay, setSoundPlay] = useState(false);
 
   const lineWidth = useTiming(recordingInProgress, { duration: 10000 });
   const scale = useSequenceRepeat(recordingInProgress);
-
-  useEffect(() => {
-    console.log(recordingInProgress);
-  }, [recordingInProgress]);
 
   async function handleStartRecording() {
     try {
@@ -51,32 +53,34 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
         setTimerLImitAudio(`${acc.toString().padStart(2, "0")}s`);
       }, 1000);
 
-      await startRecording();
-      handleStopRecording();
+      const uri = await startRecording();
+      onFinishRecorder(uri);
+      console.log("Recording stopped and stored at", uri);
+      cancelAllAnimations();
     } catch (err) {
       console.error("Failed to start recording", err);
       clearAudioRecorded();
     }
   }
 
+  function cancelAllAnimations() {
+    if (timer.current) {
+      clearInterval(timer.current);
+    }
+    scale.value = 1;
+    lineWidth.value = 0;
+    cancelAnimation(lineWidth);
+    cancelAnimation(scale);
+    scale.value = 1;
+    lineWidth.value = 0;
+    recording.current = undefined;
+  }
+
   async function handleStopRecording() {
     try {
-      console.log("Roudou aqui");
-      if (timer.current) {
-        clearInterval(timer.current);
-      }
-
       const uri = await stopRecording();
-
-      cancelAnimation(lineWidth);
-      cancelAnimation(scale);
-
-      scale.value = 1;
-
-      lineWidth.value = 0;
-
-      recording.current = undefined;
-
+      cancelAllAnimations();
+      onFinishRecorder(uri);
       console.log("Recording stopped and stored at", uri);
     } catch (error) {
       console.log(error);
@@ -89,18 +93,22 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
   }
 
   async function playAudio() {
-    console.log(audioUri);
     if (!audioUri) {
       return null;
     }
-
     try {
       const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
-
       await sound.playAsync();
       await sound.setVolumeAsync(1);
 
-      console.log("AUdio is loaded", sound._loaded);
+      setSoundPlay(true);
+
+      sound.setOnPlaybackStatusUpdate((state) => {
+        //@ts-ignore
+        if (!state.isPlaying) {
+          setSoundPlay(false);
+        }
+      });
     } catch (error) {
       console.log(error);
     }
@@ -155,7 +163,7 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
             onPress={playAudio}
             style={[styles.buttonPlaySound, animatedStyle]}
             icon={{
-              name: "play",
+              name: soundPlay ? "pause" : "play",
               color: defaultColor,
             }}
           />
@@ -178,6 +186,15 @@ const AudioRecorder: React.FC<IPropsAudioRecorder> = ({ defaultColor }) => {
           />
         )}
       </Animated.View>
+      {error && (
+        <Animated.Text
+          layout={Layout}
+          entering={FadeInUp}
+          style={styles.textError}
+        >
+          {error}
+        </Animated.Text>
+      )}
     </Animated.View>
   );
 };

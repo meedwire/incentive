@@ -1,17 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  LayoutChangeEvent,
-  ScrollView,
-  Text,
-  TextInput,
-  ToastAndroid,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, TouchableOpacity, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { makeStyles } from "./styles";
@@ -20,26 +8,12 @@ import * as Yup from "yup";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import moment from "moment";
 import { IRouteParams } from "../../routes/app.routes";
-import Animated, {
-  BounceIn,
-  cancelAnimation,
-  Easing,
-  Keyframe,
-  Layout,
-  SlideInLeft,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { colors as dataColors } from "../../constants";
-import { getLuminance, lighten, shade } from "polished";
 import { ITask } from "../../commonTypes";
 import { Audio } from "expo-av";
-import Icon from "@expo/vector-icons/MaterialCommunityIcons";
 import * as fs from "expo-file-system";
-import { useAsyncState } from "../../hooks";
+import { useAsyncState, useTask } from "../../hooks";
 import { AudioRecorder, ColorScheme, LoadingButton } from "./components";
 import { Input } from "../../components";
 
@@ -52,6 +26,7 @@ const schema = Yup.object().shape({
   description: Yup.string().required("A descrição é obrigatória"),
   award: Yup.string().required("A premiação é obrigatória"),
   limitDate: Yup.string().required("A data limite é obrigatória"),
+  audioBase64: Yup.string().required("O Audio é obrigatória"),
 });
 
 type IRoute = RouteProp<IRouteParams, "TasksConfig">;
@@ -61,12 +36,10 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const TasksConfig: React.FC = () => {
   const navigation = useNavigation();
   const { params } = useRoute<IRoute>();
-  const refScrollColors = useRef<FlatList>(null);
   const colors = [...new Set(dataColors)].filter((_, i) => i % 6 === 0);
-  const recording = useRef<Audio.Recording>();
-  const [audioUri, setAudioUri] = useState<string | null | undefined>();
   const [loading, setLoading] = useAsyncState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const { getById, save, update } = useTask();
 
   const randomIndex = Math.floor(Math.random() * colors.length);
 
@@ -84,45 +57,14 @@ const TasksConfig: React.FC = () => {
       } as IValues,
       validationSchema: schema,
       onSubmit: async (data: any) => {
-        // const db = getDatabase();
         setLoading(true);
         if (params?.id) {
-          if (audioUri) {
-            const audioBase64 = await fs.readAsStringAsync(audioUri, {
-              encoding: "base64",
-            });
-
-            // await update(child(ref(db), params?.id), { ...data, audioBase64 });
-
-            await setLoading(false);
-
-            navigation.navigate("Home");
-          } else {
-            // await update(child(ref(db), params?.id), data);
-
-            await setLoading(false);
-
-            navigation.navigate("Home");
-          }
+          await update(params.id, { ...data, color: defaultColor });
         } else {
-          if (audioUri) {
-            const audioBase64 = await fs.readAsStringAsync(audioUri, {
-              encoding: "base64",
-            });
-
-            // await push(ref(db), { ...data, audioBase64 });
-
-            await setLoading(false);
-
-            navigation.navigate("Home");
-          } else {
-            // await push(ref(db), { ...data });
-
-            await setLoading(false);
-
-            navigation.navigate("Home");
-          }
+          await save({ ...data, color: defaultColor });
         }
+
+        navigation.goBack();
       },
     });
 
@@ -138,15 +80,17 @@ const TasksConfig: React.FC = () => {
   const getInitialData = useCallback(
     async (id: string) => {
       try {
-        // const data = await getTaskById(id);
-        // if (data) {
-        //   setValues({
-        //     ...data,
-        //     date: moment(data.limitDate, "DD/MM/YY").toDate(),
-        //     limitDate: data.limitDate,
-        //     show: false,
-        //   });
-        // }
+        const data = await getById(id);
+
+        if (data) {
+          setValues({
+            ...data,
+            date: moment(data.limitDate, "DD/MM/YY").toDate(),
+            limitDate: data.limitDate,
+            show: false,
+          });
+          setDefaultColor(data.color);
+        }
       } catch (error) {
         console.log(error);
       }
@@ -159,6 +103,22 @@ const TasksConfig: React.FC = () => {
       getInitialData(params.id);
     }
   }, [params?.id]);
+
+  async function getAudioBase64(uri: string | null | undefined) {
+    try {
+      if (!uri) {
+        return;
+      }
+
+      const audioBase64 = await fs.readAsStringAsync(uri, {
+        encoding: "base64",
+      });
+
+      setFieldValue("audioBase64", audioBase64);
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -184,7 +144,11 @@ const TasksConfig: React.FC = () => {
         value={moment(values?.date).format("DD/MM/YYYY")}
         error={errors?.limitDate}
       />
-      <AudioRecorder defaultColor={defaultColor} />
+      <AudioRecorder
+        defaultColor={defaultColor}
+        onFinishRecorder={getAudioBase64}
+        error={errors.audioBase64}
+      />
       {showDatePicker && (
         <DateTimePicker
           value={values.date}
@@ -195,9 +159,16 @@ const TasksConfig: React.FC = () => {
         />
       )}
 
-      <ColorScheme onChangeColor={(color) => setDefaultColor(color)} />
+      <ColorScheme
+        defaultColor={defaultColor}
+        onChangeColor={(color) => setDefaultColor(color)}
+      />
 
-      <LoadingButton loading={loading} defaultColor={defaultColor} />
+      <LoadingButton
+        loading={loading}
+        defaultColor={defaultColor}
+        onPress={handleSubmit}
+      />
     </View>
   );
 };

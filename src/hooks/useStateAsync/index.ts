@@ -4,13 +4,16 @@ export function useAsyncState<T>(
   initialValue: T
 ): [T, (newValue: T) => Promise<T>] {
   const [state, setState] = useState<T>(initialValue);
-  const refResolve = useRef<(value: T | PromiseLike<T>) => void>(
-    Promise.resolve
-  );
+  const refResolve = useRef<(value: T | PromiseLike<T>) => void>();
 
   const changeAsyncState = useCallback((newValue: T) => {
-    setState(newValue);
-    return new Promise<T>((resolve) => (refResolve.current = resolve));
+    return new Promise<T>((resolve, reject) => {
+      setState(newValue);
+      if (state === newValue) {
+        resolve(state);
+      }
+      refResolve.current = resolve;
+    });
   }, []);
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
 import { Audio } from "expo-av";
 
 export interface ITask {
-  id: string;
+  id?: string;
   description: string;
   award: string;
   points: number;

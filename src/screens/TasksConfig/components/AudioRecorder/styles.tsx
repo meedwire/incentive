@@ -36,5 +36,11 @@ export function makeStyles(color?: string) {
           ? shade(0.4, defaultColor)
           : defaultColor,
     },
+    textError: {
+      fontSize: 12,
+      color: "#ff6565",
+      marginLeft: 8,
+      marginTop: 10,
+    },
   });
 }

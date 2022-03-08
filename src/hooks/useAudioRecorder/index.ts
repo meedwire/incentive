@@ -69,8 +69,11 @@ export function useAudioRecorder(maxSizeRecording?: number) {
   const stopRecording = useCallback(async () => {
     try {
       await setRecordingInProgress(false);
-      await refRecording.current?.recording?.stopAndUnloadAsync();
-      const uri = refRecording.current?.recording.getURI();
+
+      if (refRecording.current?.status.isRecording) {
+        await refRecording.current?.recording?.stopAndUnloadAsync();
+      }
+      const uri = refRecording.current?.recording.getURI() || audioUri;
 
       setAudioUri(uri);
       refResolve.current(uri);
@@ -80,7 +83,9 @@ export function useAudioRecorder(maxSizeRecording?: number) {
       }
 
       return uri;
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   }, []);
 
   const clearRecording = useCallback(async () => {

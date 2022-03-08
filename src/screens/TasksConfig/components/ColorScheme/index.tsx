@@ -16,18 +16,16 @@ import { IPropsColorScheme } from "./types";
 
 const colors = [...new Set(dataColors)].filter((_, i) => i % 6 === 0);
 
-const ColorScheme: React.FC<IPropsColorScheme> = ({ onChangeColor }) => {
+const ColorScheme: React.FC<IPropsColorScheme> = ({
+  onChangeColor,
+  defaultColor,
+}) => {
   const refScroll = useRef<FlatList>(null);
-  const randomIndex = Math.floor(Math.random() * colors.length);
-
-  const [defaultColor, setDefaultColor] = useState(
-    colors.find((_, i) => i === randomIndex) || "#e8ffed"
-  );
 
   const styles = useMemo(() => makeStyles(defaultColor), [defaultColor]);
 
   useEffect(() => {
-    onChangeColor(defaultColor);
+    onChangeColor(defaultColor || "#dadada");
   }, []);
 
   useEffect(() => {
@@ -39,7 +37,7 @@ const ColorScheme: React.FC<IPropsColorScheme> = ({ onChangeColor }) => {
         });
       }
     }, 500);
-  }, []);
+  }, [defaultColor]);
 
   const renderItem = useCallback(
     ({ item, index }) => (
@@ -47,7 +45,6 @@ const ColorScheme: React.FC<IPropsColorScheme> = ({ onChangeColor }) => {
         layout={Layout}
         entering={BounceIn}
         onPress={() => {
-          setDefaultColor(item);
           onChangeColor(item);
         }}
         style={[

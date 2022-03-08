@@ -7,3 +7,4 @@ export * from "./useTaskDelete";
 export * from "./useAudioRecorder";
 export * from "./useSequenceRepeat";
 export * from "./useTiming";
+export * from "./useTask";
